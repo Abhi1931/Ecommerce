@@ -3,13 +3,13 @@ package com.example.ecommerce.Controller;
 
 import com.example.ecommerce.DTO.WishlistDTO;
 import com.example.ecommerce.Service.Implementations.UserPrincipal;
-import com.example.ecommerce.Service.WishlistService;
+import com.example.ecommerce.Service.Implementations.WishlistService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
-
 import java.util.List;
+
 
 @RestController
 @RequestMapping("/essentials/user/wishlist")
@@ -19,11 +19,11 @@ public class WishlistController {
     private final WishlistService wishlistService;
 
     @PostMapping("/add/{productId}")
-    public ResponseEntity<WishlistDTO> addToWishlist(@PathVariable Long productId,
+    public ResponseEntity<Boolean> addToWishlist(@PathVariable Long productId,
                                                      Authentication authentication) {
         Long userId = ((UserPrincipal) authentication.getPrincipal()).getUserData().getId();
-        WishlistDTO dto = wishlistService.addToWishlist(userId, productId);
-        return ResponseEntity.ok(dto);
+        boolean added = wishlistService.addToWishlist(userId, productId);
+        return ResponseEntity.ok(added);
     }
 
     @GetMapping

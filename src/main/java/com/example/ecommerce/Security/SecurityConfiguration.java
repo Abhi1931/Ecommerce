@@ -14,10 +14,11 @@ import org.springframework.security.config.annotation.authentication.configurati
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -43,11 +44,11 @@ public class SecurityConfiguration {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                .cors(Customizer.withDefaults()) // ✅ enable CORS with your config
+                .cors(Customizer.withDefaults())
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/essentials/login", "/essentials/register", "/essentials/user/refresh-token","/essentials/products/allproducts","/essentials/registers").permitAll()
+                        .requestMatchers("/essentials/login", "/essentials/customer/register", "/essentials/user/refresh-token","/essentials/products/allproducts","/essentials/seller/registers").permitAll()
                         .requestMatchers("/essentials/admin/**").hasRole("ADMIN").anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
@@ -58,8 +59,8 @@ public class SecurityConfiguration {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOriginPatterns(List.of("http://localhost:5173")); // ✅ pattern-based origin
-        configuration.setAllowCredentials(true); // ✅ important for cookies
+        configuration.setAllowedOriginPatterns(List.of("http://localhost:5173"));
+        configuration.setAllowCredentials(true);
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setExposedHeaders(List.of("Authorization"));
@@ -80,11 +81,9 @@ public class SecurityConfiguration {
     @Bean
     public AuthenticationProvider authenticationProvider(UserDetailsService userDetailsService){
         DaoAuthenticationProvider dao = new DaoAuthenticationProvider(userDetailsService);
-      //  dao.setPasswordEncoder(Argon2PasswordEncoder.defaultsForSpringSecurity_v5_8());
-      //  dao.setUserDetailsService(userDetailsService);
         dao.setPasswordEncoder(new BCryptPasswordEncoder(9));
-        
     return dao;
     }
+
 
 }

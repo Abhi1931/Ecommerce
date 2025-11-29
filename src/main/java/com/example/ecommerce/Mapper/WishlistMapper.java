@@ -1,6 +1,5 @@
 package com.example.ecommerce.Mapper;
 
-
 import com.example.ecommerce.DTO.WishlistDTO;
 import com.example.ecommerce.Entity.Wishlist;
 import org.mapstruct.Mapper;

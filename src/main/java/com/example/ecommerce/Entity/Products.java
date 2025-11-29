@@ -4,6 +4,7 @@ package com.example.ecommerce.Entity;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
+import org.apache.logging.log4j.util.ProcessIdUtil;
 
 import java.util.Set;
 
@@ -27,7 +28,7 @@ public class Products {
    private String name;
 
    @Column
-   private float price;
+   private double price;
 
    @Column
    private String imageUrl;
@@ -47,5 +48,17 @@ public class Products {
     @ManyToMany(mappedBy = "products")
     @JsonIgnore
     private Set<Sellerdata> sellers;
+
+
+    public Products(boolean availability,String brand,String category,String description,String name,double price,int quantity,String imageUrl) {
+        this.availability = availability;
+        this.brand = brand;
+        this.category = category;
+        this.description = description;
+        this.name = name;
+        this.price = price;
+        this.quantity = quantity;
+        this.imageUrl = imageUrl;
+    }
 
 }

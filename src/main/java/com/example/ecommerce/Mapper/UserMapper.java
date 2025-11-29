@@ -1,6 +1,5 @@
 package com.example.ecommerce.Mapper;
 
-//import com.example.ecommerce.DTO.AdminDTO;
 import com.example.ecommerce.DTO.AdminDTO;
 import com.example.ecommerce.Entity.UserData;
 import org.mapstruct.Mapper;

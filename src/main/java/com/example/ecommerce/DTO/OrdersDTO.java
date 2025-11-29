@@ -16,10 +16,13 @@ public class OrdersDTO {
     private int quantity;
     private double totalPrice;
 
+    private String Address;
+
     private LocalDateTime orderPlacedAt;
     private ProductDTO product;
     private UserDTO user;
 
     private Status status;
+
 
 }

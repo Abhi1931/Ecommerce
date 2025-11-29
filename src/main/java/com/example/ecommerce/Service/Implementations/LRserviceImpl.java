@@ -66,7 +66,7 @@ public class LRserviceImpl implements LsRservice {
 
         ResponseCookie cookie = ResponseCookie.from("refreshToken", refreshToken)
                 .httpOnly(true)
-                .secure(false) // Set to true if HTTPS is used
+                .secure(false)
                 .path("/")
                 .sameSite("Lax")
                 .maxAge(Duration.ofDays(7))
@@ -110,7 +110,7 @@ public class LRserviceImpl implements LsRservice {
     }
 
     @Override
-    public String Register(Registeration register) {
+    public String CustomerRegisteration(Registeration register) {
         if (userRepository.findByUsername(register.getUsername()) != null) {
             return "Username already exists";
         }
@@ -131,7 +131,7 @@ public class LRserviceImpl implements LsRservice {
     }
 
     @Override
-    public ResponseEntity<String> Registers(Registeration registers) {
+    public ResponseEntity<String> SellerRegisteration(Registeration registers) {
         if (sellerRepo.findByUsername(registers.getUsername()) != null) {
             return new ResponseEntity<>("username already exists",HttpStatus.CONFLICT);
         }

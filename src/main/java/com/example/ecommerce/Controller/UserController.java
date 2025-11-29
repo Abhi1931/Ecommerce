@@ -4,7 +4,6 @@ import com.example.ecommerce.DTO.UserDTO;
 import com.example.ecommerce.Service.LsRservice;
 import com.example.ecommerce.Service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 @RestController
@@ -35,7 +34,7 @@ public class UserController {
     }
 
     @PutMapping("/profile/{id}")
-    public String UpdateUserById(@RequestBody UserDTO adminDTO, @PathVariable("id") Long id){
-        return userService.UpdateUserById(adminDTO,id);
+    public String UpdateUserById(@RequestBody UserDTO userDTO, @PathVariable("id") Long id){
+        return userService.UpdateUserById(userDTO,id);
     }
 }

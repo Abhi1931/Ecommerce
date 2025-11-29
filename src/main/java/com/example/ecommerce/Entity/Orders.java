@@ -36,6 +36,9 @@ public class Orders {
         @Column(name = "status")
         private Status status;
 
+        @Column
+        private String Address;
+
         @PrePersist
         public void prePersist() {
             orderPlacedAt = LocalDateTime.now();

@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
+
 import javax.crypto.SecretKey;
 import java.util.Date;
 import java.util.HashMap;
@@ -25,6 +26,10 @@ public class JWTservice {
 
     private SecretKey getKey() {
         byte[] keyBytes = Decoders.BASE64.decode(skey);
+        if (keyBytes.length < 32) {
+            throw new IllegalArgumentException("jwt.secret decoded length is " + keyBytes.length +
+                    " bytes — must be at least 32 bytes (256 bits) for HS256");
+        }
         return Keys.hmacShaKeyFor(keyBytes);
     }
 
@@ -43,31 +48,28 @@ public class JWTservice {
         }
 
         return Jwts.builder()
-                .claims(claims)
-                .subject(userDetails.getUsername())
-                .issuedAt(new Date())
-                .expiration(new Date(System.currentTimeMillis() + 1000 * 60 * 15)) // 15 minutes
+                .setClaims(claims)
+                .setSubject(userDetails.getUsername())
+                .setIssuedAt(new Date())
+                .setExpiration(new Date(System.currentTimeMillis() + 1000L * 60 * 15))
                 .signWith(getKey())
                 .compact();
     }
 
     public String generateRefreshToken(UserDetails userDetails) {
         return Jwts.builder()
-                .subject(userDetails.getUsername())
+                .setSubject(userDetails.getUsername())
                 .claim("roles", userDetails.getAuthorities())
-                .issuedAt(new Date())
-                .expiration(new Date(System.currentTimeMillis() + 7L * 24 * 60 * 60 * 1000)) // 7 days
+                .setIssuedAt(new Date())
+                .setExpiration(new Date(System.currentTimeMillis() + 7L * 24 * 60 * 60 * 1000))
                 .signWith(getKey())
                 .compact();
     }
 
     public boolean validateToken(String token, UserDetails userDetails) {
-        try {
-            final String username = extractUsername(token);
-            return (username.equals(userDetails.getUsername()) && !isTokenExpired(token));
-        } catch (JwtException | IllegalArgumentException e) {
-            return false;
-        }
+
+        final String username = extractUsername(token);
+        return (username.equals(userDetails.getUsername()) && !isTokenExpired(token));
     }
 
     public String extractUsername(String token) {
@@ -84,7 +86,10 @@ public class JWTservice {
             if (id instanceof Integer) {
                 return ((Integer) id).longValue();
             }
-            return (Long) id;
+            if (id instanceof Long) {
+                return (Long) id;
+            }
+            return null;
         });
     }
 
@@ -97,12 +102,17 @@ public class JWTservice {
     }
 
     private Claims extractAllClaims(String token) {
-        return Jwts.parser()
-                .verifyWith(getKey())
-                .clockSkewSeconds(60) // Increased clock skew to 60 seconds
-                .build()
-                .parseSignedClaims(token)
-                .getPayload();
+        try {
+
+            return Jwts.parser()
+                    .verifyWith(getKey())
+                    .build()
+                    .parseSignedClaims(token)
+                    .getPayload();
+        } catch (JwtException e) {
+
+            throw e;
+        }
     }
 
     private <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
@@ -110,13 +120,18 @@ public class JWTservice {
         return claimsResolver.apply(claims);
     }
 
-    // Utility method to check if token is valid without user details
     public boolean isTokenValid(String token) {
         try {
-            extractAllClaims(token);
+
+            Jwts.parser()
+                    .verifyWith(getKey())
+                    .build()
+                    .parseSignedClaims(token);
+
             return !isTokenExpired(token);
         } catch (JwtException | IllegalArgumentException e) {
-            return false;
+
+            throw e;
         }
     }
 }

@@ -3,7 +3,7 @@ package com.example.ecommerce.Controller;
 
 import com.example.ecommerce.DTO.OrdersDTO;
 import com.example.ecommerce.Service.Implementations.UserPrincipal;
-import com.example.ecommerce.Service.OrdersService;
+import com.example.ecommerce.Service.Implementations.OrdersService;
 import lombok.RequiredArgsConstructor;
 import org.hibernate.query.Order;
 import org.springframework.http.ResponseEntity;
@@ -30,19 +30,16 @@ public class OrdersController {
     @PostMapping("/place/{productId}")
     public ResponseEntity<OrdersDTO> placeOrder(@PathVariable Long productId,
                                                 @RequestParam(required = false, defaultValue = "1") int quantity,
-                                                Authentication authentication) {
+                                                Authentication authentication,@RequestBody String address) {
         Long userId = ((UserPrincipal) authentication.getPrincipal()).getUserData().getId();
-        OrdersDTO order = ordersService.placeOrder(userId, productId, quantity);
-        return ResponseEntity.ok(order);
+        OrdersDTO order = ordersService.placeOrder(userId, productId, quantity,address);
+        return order!= null? ResponseEntity.ok(order) : ResponseEntity.noContent().build();
     }
 
-    @GetMapping("/recentorders")
+    @GetMapping("/all")
     public ResponseEntity<List<OrdersDTO>> getUserOrders(Authentication authentication) {
         Long userId = ((UserPrincipal) authentication.getPrincipal()).getUserData().getId();
         return ResponseEntity.ok(ordersService.getUserOrders(userId));
     }
 
-//    public ResponseEntity<List<OrdersDTO>> getOrdersByUserId(@PathVariable("userid") Long userid){
-//
-//    }
 }

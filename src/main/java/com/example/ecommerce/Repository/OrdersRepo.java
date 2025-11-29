@@ -11,4 +11,7 @@ public interface OrdersRepo extends JpaRepository<Orders,Long> {
     List<Orders> findByUserId(Long user_id);
     List<Orders> findByUserIdOrderByOrderPlacedAtDesc(Long user_id);
 
+    List<Orders> findAllByProduct_PidIn(List<Long> productPid);
+
+    boolean existsByProduct_Pid(Long productPid);
 }

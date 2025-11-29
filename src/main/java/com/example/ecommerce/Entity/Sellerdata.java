@@ -31,10 +31,12 @@ public class Sellerdata {
 
     private int age;
 
+    @Column(unique = true)
     private String email;
 
     private String gender;
 
+    @Column(unique = true)
     private Long number;
 
     @JsonIgnore

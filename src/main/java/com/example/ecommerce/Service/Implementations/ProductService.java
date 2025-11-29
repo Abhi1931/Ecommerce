@@ -77,7 +77,6 @@ public class ProductService {
     @Transactional(readOnly = true)
     public List<ProductDTO> getByCategories(String category) {
         List<Products> categoryproducts = productRepo.findProductsWithSellersByCategory(category).orElseThrow(() ->new ResponseStatusException(HttpStatus.NOT_FOUND,"not found"));
-
         return productMapper.toDTOs(categoryproducts);
     }
 

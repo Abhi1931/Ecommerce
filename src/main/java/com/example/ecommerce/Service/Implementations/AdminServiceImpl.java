@@ -2,6 +2,9 @@ package com.example.ecommerce.Service.Implementations;
 
 import com.example.ecommerce.DTO.*;
 import com.example.ecommerce.Entity.*;
+import com.example.ecommerce.Exceptions.DeleteBlockReason;
+import com.example.ecommerce.Exceptions.DeleteNotAllowedEx;
+import com.example.ecommerce.Exceptions.ResourceNotFoundException;
 import com.example.ecommerce.Mapper.OrdersMapper;
 import com.example.ecommerce.Mapper.ProductMapper;
 import com.example.ecommerce.Mapper.Seller;
@@ -9,11 +12,10 @@ import com.example.ecommerce.Mapper.UserMapper;
 import com.example.ecommerce.Repository.*;
 import com.example.ecommerce.Service.AdminService;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
-//import org.springframework.security.provisioning.UserDetailsManager;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.*;
@@ -27,52 +29,41 @@ public class AdminServiceImpl implements AdminService {
     private final RoleRepo repo;
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
     private final UserRepository userRepository;
-
+    private final OrdersMapper ordersMapper;
     private final ProductRepo productRepo;
     private final UserMapper userMapper;
     private final SellerRepo sellerRepo;
+    private final OrdersRepo ordersRepo;
+    private final CartRepo cartRepo;
+    private final WishlistRepo wishlistRepo;
     private  final ProductMapper productMapper;
 
-    @Autowired
-    private OrdersMapper ordersMapper;
-    private final OrdersRepo ordersRepo;
-
      private final Seller sellerMapper;
-    public AdminServiceImpl(RoleRepo repo,ProductMapper productMapper, UserRepository userRepository, ProductRepo productRepo, UserMapper userMapper,SellerRepo sellerRepo,Seller sellerMapper,OrdersRepo ordersRepo) {
+
+    public AdminServiceImpl(RoleRepo repo,WishlistRepo wishlistRepo,CartRepo cartRepo,ProductMapper productMapper, UserRepository userRepository, ProductRepo productRepo, UserMapper userMapper,SellerRepo sellerRepo,Seller sellerMapper,OrdersRepo ordersRepo,OrdersMapper ordersMapper) {
         this.repo = repo;
+        this.wishlistRepo = wishlistRepo;
+        this.cartRepo = cartRepo;
         this.userRepository = userRepository;
         this.productRepo = productRepo;
         this.userMapper = userMapper;
         this.sellerRepo=sellerRepo;
         this.ordersRepo=ordersRepo;
         this.sellerMapper=sellerMapper;
+        this.ordersMapper=ordersMapper;
         this.productMapper= productMapper;
-
     }
 
 
     //For User Data
     @Override
     public Optional<AdminDTO> GetUserById(Long id) {
-
         return userRepository.findById(id).map(userMapper::toDTO);
     }
 
     @Override
      public List<AdminDTO> GetAllUserData() {
 
-//        List<AdminDTO> userDTOList = new ArrayList<>();
-//         List<UserData> list= new ArrayList<>(userRepository.findAll());
-//          list.forEach(userData->{
-//              AdminDTO userDTO = new AdminDTO();
-//              userDTO.setUsername(userData.getUsername());
-//              userDTO.setEmail(userData.getEmail());
-//              userDTO.setFullname(userData.getFullname());
-//              userDTO.setPassword(userData.getPassword());
-//              userDTO.setId(userData.getId());
-//              userDTO.setRole(userData.getRole().getRoleName());
-//              userDTOList.add(userDTO);
-//          });
         return userRepository.findAll().stream().map(userMapper::toDTO).collect(Collectors.toList());
     }
 
@@ -80,56 +71,74 @@ public class AdminServiceImpl implements AdminService {
     public AdminDTO CreateUser(AdminDTO adminDTO) {
 
         UserData user = userMapper.toEntity(adminDTO);
-        Role role = repo.findByRoleName(adminDTO.getRole()).orElseThrow(() -> new RuntimeException("user not found"));
+        Role role = repo.findByRoleName(adminDTO.getRole()).orElseThrow(() -> new ResourceNotFoundException("Role","name",adminDTO.getRole()));
         user.setRole(role);
 
         userRepository.save(user);
-        if (user == null) {
-            System.out.println("User details not saved");
-        }
-        else{
-            System.out.println("User details are saved");
+        UserData saved = userRepository.save(user);
+        if (saved == null) {
+            throw new RuntimeException("failed to save user");
         }
         return userMapper.toDTO(user);
 
     }
 
     @Override
-    public String DeleteUserById(Long id) {
+    public SellerDTO CreateSeller(SellerDTO sellerDTO) {
+        Sellerdata sellerdata = sellerMapper.toEntity(sellerDTO);
+        sellerdata.setPassword(passwordEncoder.encode(sellerDTO.getPassword()));
+        sellerRepo.save(sellerdata);
+        Sellerdata saved = sellerRepo.save(sellerdata);
+        if (saved == null) {
+            throw new RuntimeException("Failed to save seller");
+        }
+        return sellerMapper.toDTO(sellerdata);
+    }
+
+    @Override
+    public void DeleteUserById(Long id) {
+        if (!userRepository.existsById(id)) {
+            throw new ResourceNotFoundException("User", "id", id);
+        }
         userRepository.deleteById(id);
-        return "User deleted Successfully";
     }
 
     @Override
     public AdminDTO UpdateUserDetails(AdminDTO update, Long id) {
-        if (userRepository.findById(id).isPresent()) {
-            UserData user = userMapper.toEntity(update);
-            user.setId(id);
-            user.setPassword(passwordEncoder.encode(update.getPassword()));
-            Role role = repo.findByRoleName(update.getRole()).orElseThrow(() -> new RuntimeException("role not found"));
-            user.setRole(role);
-            userRepository.save(user);
-            return userMapper.toDTO(user);
-        }
-        else {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found");
+
+        UserData existing = userRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", id));
+
+        UserData userWithSameUsername = userRepository.findByUsername(update.getUsername());
+        if (userWithSameUsername != null && !userWithSameUsername.getId().equals(existing.getId())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Username already exists");
         }
 
-//        return userRepository.findById(id).map(user ->  {
-//            user.setFullname(update.getFullname());
-//            user.setEmail(update.getEmail());
-//            user.setPassword(update.getPassword());
-//            user.setUsername(update.getUsername());
-//            user.setId(update.getId());
-//            return userRepository.save(user);
-//        }).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+        existing.setFullname(update.getFullname());
+        existing.setEmail(update.getEmail());
+        existing.setUsername(update.getUsername());
 
+        if (update.getPassword() != null && !update.getPassword().isBlank()) {
+            existing.setPassword(passwordEncoder.encode(update.getPassword()));
+        }
+        System.out.println("role = " + update.getRole());
+        Role role = repo.findByRoleName(update.getRole())
+                .orElseThrow(() -> new ResourceNotFoundException("Role","name",update.getRole()));
+        existing.setRole(role);
+
+        userRepository.save(existing);
+        return userMapper.toDTO(existing);
+    }
+
+
+    private boolean isDefaultAdmin(Long userId) {
+      return userRepository.findById(userId).stream().anyMatch(user -> user.getEmail().equalsIgnoreCase("abhi@gmail.com"));
     }
 
     @Override
     public AdminDTO GetUserByName(String name) {
-        UserData user = userRepository.findByFullname(name).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
-      return   userMapper.toDTO(user);
+        UserData user = userRepository.findByFullname(name).orElseThrow(() -> new ResourceNotFoundException("User", "fullname", name));
+      return userMapper.toDTO(user);
     }
 
     // -- For  Product
@@ -146,15 +155,15 @@ public class AdminServiceImpl implements AdminService {
                  List<Long> sellerpids = new ArrayList<>();
         List<Long> pids = new ArrayList<>(products.stream().map(Products::getPid).toList());
                List<Long> sids =  sellers.stream().map(Sellerdata::getSid).toList();
-               for (Long d : sids){
-                  Sellerdata sellerdata = sellerRepo.findById(d).orElseThrow(() -> new RuntimeException("bokka"));
+               for (Long id : sids){
+                  Sellerdata sellerdata = sellerRepo.findById(id).orElseThrow(() -> new ResourceNotFoundException("Seller", "id", id));
                      sellerpids.addAll(sellerdata.getProducts().stream().map(Products::getPid).toList());
                }
 
                List<Products> adminprods = new ArrayList<>();
-               for (Long u : pids) {
-                   if (!(sellerpids.contains(u))) {
-                       adminprods.add(productRepo.findById(u).orElseThrow(() -> new RuntimeException("bokka")));
+               for (Long id : pids) {
+                   if (!(sellerpids.contains(id))) {
+                       adminprods.add(productRepo.findById(id).orElseThrow(() -> new ResourceNotFoundException("Product", "id", id)));
                    }
                }
         return adminprods;
@@ -163,8 +172,8 @@ public class AdminServiceImpl implements AdminService {
     public List<ProductDTO> GetAllSellerProducts(){
             List<Long> sids = sellerRepo.findAll().stream().map(Sellerdata::getSid).toList();
         List<Products> ert = new ArrayList<>();
-            for (Long s: sids) {
-                 ert.addAll(productRepo.findBySellers_Sid(s));
+            for (Long id: sids) {
+                 ert.addAll(productRepo.findBySellers_Sid(id));
             }
 
             return productMapper.toDTOs(ert);
@@ -172,20 +181,16 @@ public class AdminServiceImpl implements AdminService {
 
     @Override
     public void AddProducts(Products prod) {
+        Products saved = productRepo.save(prod);
+        if (saved == null) throw new RuntimeException("Failed to save product");
         productRepo.save(prod);
     }
-
-//    @Override
-//    public Optional<Products> GetByCategories(String Category) {
-//        return productRepo.findByCategory(Category);
-//    }
 
     @Override
     public Products UpdateProdDetails(Products prod, Long id) {
         return productRepo.findById(id)
                 .map( updates -> {
             updates.setPrice(prod.getPrice());
-            updates.setPid(prod.getPid());
             updates.setCategory(prod.getCategory());
             updates.setName(prod.getName());
             updates.setBrand(prod.getBrand());
@@ -194,27 +199,45 @@ public class AdminServiceImpl implements AdminService {
             updates.setQuantity(prod.getQuantity());
             return productRepo.save(updates);
         })
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Product not found with ID: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Product", "id", id));
     }
 
+
     @Override
-    public String DeleteProdById(Long id) {
-        productRepo.deleteById(id);
-        return "Product Deleted Successfully";
+    @Transactional
+    public void DeleteProdById(Long pid) {
+        Products product = productRepo.findById(pid)
+                .orElseThrow(() -> new ResourceNotFoundException("Product", "id", pid));
+
+        if (ordersRepo.existsByProduct_Pid(pid)) {
+            throw new DeleteNotAllowedEx(DeleteBlockReason.ORDERED, "Product cannot be deleted: already ordered");
+        }
+        if (cartRepo.existsByProductPid(pid)) {
+            throw new DeleteNotAllowedEx(DeleteBlockReason.IN_CART, "Product cannot be deleted: in cart");
+        }
+        if (wishlistRepo.existsByProductPid(pid)) {
+            throw new DeleteNotAllowedEx(DeleteBlockReason.IN_WISHLIST, "Product cannot be deleted: in wishlist");
+        }
+
+        if (product.getSellers() != null) {
+            product.getSellers().forEach(seller -> seller.getProducts().remove(product));
+            product.getSellers().clear();
+        }
+        productRepo.delete(product);
     }
 
     @Override
     public List<SellerDTO> AllSellers() {
         List<Sellerdata> sellerss= sellerRepo.findAll();
-        List<SellerDTO> daata =sellerss.stream().map(sellerMapper::toDTO).collect(Collectors.toList());
-        return daata;
+        List<SellerDTO> data =sellerss.stream().map(sellerMapper::toDTO).collect(Collectors.toList());
+        return data;
     }
 
     @Override
     public List<OrdersDTO> GetAllOrders() {
        List<Orders> data = ordersRepo.findAll();
-         List<OrdersDTO> data2=  ordersMapper.toDTOs(data);
-         return data2;
+         List<OrdersDTO> data1=  ordersMapper.toDTOs(data);
+         return data1;
     }
 
 

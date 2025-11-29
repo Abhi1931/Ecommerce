@@ -2,23 +2,22 @@ package com.example.ecommerce.Security;
 
 import com.example.ecommerce.Service.Implementations.JWTservice;
 import com.example.ecommerce.Service.Implementations.MyUserDetailsService;
-import jakarta.servlet.FilterChain;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.ApplicationContext;
+import io.jsonwebtoken.JwtException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.web.authentication.WebAuthenticationDetails;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Component
 public class JWTFilter extends OncePerRequestFilter {
@@ -37,7 +36,6 @@ public class JWTFilter extends OncePerRequestFilter {
 
         String path = request.getRequestURI();
 
-        // Skip JWT validation for public endpoints
         if (isPublicEndpoint(path)) {
             filterChain.doFilter(request, response);
             return;
@@ -47,25 +45,22 @@ public class JWTFilter extends OncePerRequestFilter {
         String authToken = null;
         String authUser = null;
 
-        if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            authToken = authHeader.substring(7);
-            try {
-                // First check if token is valid before extracting username
-                if (jwtservice.isTokenValid(authToken)) {
-                    authUser = jwtservice.extractUsername(authToken);
-                } else {
-                    logger.warn("Invalid or expired token");
-                    handleInvalidToken(response);
-                    return;
-                }
-            } catch (Exception e) {
-                logger.warn("Error processing token: " + e.getMessage());
-                handleInvalidToken(response);
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            logger.warn("No valid Authorization header found");
+            sendUnauthorized(response, "Missing or invalid Authorization header");
+            return;
+        }
+
+        authToken = authHeader.substring(7);
+        try {
+            if (!jwtservice.isTokenValid(authToken)) {
+                logger.warn("Invalid or expired token");
+                sendUnauthorized(response, "Invalid or expired token");
                 return;
             }
-        } else {
-            logger.warn("No valid Authorization header found");
-            handleInvalidToken(response);
+            authUser = jwtservice.extractUsername(authToken);
+        } catch (JwtException | IllegalArgumentException ex) {
+            sendUnauthorized(response, "Invalid or expired token");
             return;
         }
 
@@ -73,23 +68,20 @@ public class JWTFilter extends OncePerRequestFilter {
             try {
                 UserDetails userDetails = userDetailsService.loadUserByUsername(authUser);
                 if (jwtservice.validateToken(authToken, userDetails)) {
-                    List<String> roles = jwtservice.extractRoles(authToken);
-                    List<SimpleGrantedAuthority> authorities = roles.stream()
-                            .map(SimpleGrantedAuthority::new) // they are already prefixed with ROLE_
-                            .toList();
+                    List<SimpleGrantedAuthority> authorities = jwtservice.extractRoles(authToken).stream()
+                            .map(SimpleGrantedAuthority::new)
+                            .collect(Collectors.toList());
                     UsernamePasswordAuthenticationToken token = new UsernamePasswordAuthenticationToken(
                             userDetails, null, authorities);
                     token.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                     SecurityContextHolder.getContext().setAuthentication(token);
                 } else {
-                    logger.warn("Token validation failed for user: " + authUser);
-                    handleInvalidToken(response);
+
+                    sendUnauthorized(response, "Token validation failed");
                     return;
                 }
-            } catch (Exception e) {
-                logger.warn("Error loading user details: " + e.getMessage());
-                handleInvalidToken(response);
-                return;
+            } catch (JwtException | IllegalArgumentException ex){
+                sendUnauthorized(response, "Invalid or expired token");
             }
         }
 
@@ -109,9 +101,10 @@ public class JWTFilter extends OncePerRequestFilter {
                 path.contains("/registers");
     }
 
-    private void handleInvalidToken(HttpServletResponse response) throws IOException {
+    private void sendUnauthorized(HttpServletResponse response, String message) throws IOException {
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
         response.setContentType("application/json");
-        response.getWriter().write("{\"error\": \"Invalid or expired token\", \"message\": \"Please login again\"}");
+        response.getWriter().write("{\"status\":401, \"message\":\"" + message + "\"}");
+        response.getWriter().flush();
     }
 }

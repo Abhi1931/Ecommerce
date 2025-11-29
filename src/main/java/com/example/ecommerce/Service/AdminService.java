@@ -18,7 +18,9 @@ public interface AdminService {
 
   AdminDTO CreateUser(AdminDTO adminDTO);
 
-  String DeleteUserById(Long id);
+  SellerDTO CreateSeller(SellerDTO sellerDTO);
+
+  void DeleteUserById(Long id);
 
   AdminDTO UpdateUserDetails(AdminDTO update, Long id);
 
@@ -30,11 +32,10 @@ public interface AdminService {
 
   void AddProducts(Products prod);
 
-//  Optional<Products> GetByCategories(String Categories);
 
   Products UpdateProdDetails(Products updates,Long id);
 
-  String DeleteProdById(Long id);
+  void DeleteProdById(Long id);
 
 
     List<SellerDTO> AllSellers();

@@ -15,17 +15,14 @@ import java.util.List;
 public class PaswwordUpdaterUser {
 
     public static void main(String[] args) {
-        // Create a manual Spring context without full boot
+
         ApplicationContext context = new SpringApplicationBuilder(EcommerceApplication.class)
                 .web(WebApplicationType.NONE)
                 .run(args);
 
-
-        // Get beans
         UserRepository userRepo = context.getBean(UserRepository.class);
         PasswordEncoder encoder = context.getBean(PasswordEncoder.class);
 
-        // Fetch and update
         List<UserData> users = userRepo.findAll();
         int updatedCount = 0;
 

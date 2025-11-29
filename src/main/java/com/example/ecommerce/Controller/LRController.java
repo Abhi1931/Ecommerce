@@ -3,7 +3,6 @@ package com.example.ecommerce.Controller;
 import com.example.ecommerce.DTO.Login;
 import com.example.ecommerce.DTO.Registeration;
 import com.example.ecommerce.Service.LsRservice;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -25,14 +24,14 @@ public class LRController {
         return ResponseEntity.ok(tokens);
     }
 
-    @PostMapping("/register")
-    public String register(@RequestBody Registeration register) {
-        return lsRservice.Register(register);
+    @PostMapping("/customer/register")
+    public String CustomerRegisteration(@RequestBody Registeration register) {
+        return lsRservice.CustomerRegisteration(register);
     }
 
-    @PostMapping("/registers")
-    public ResponseEntity<String> registers(@RequestBody Registeration register) {
-        return lsRservice.Registers(register);
+    @PostMapping("/seller/registers'")
+    public ResponseEntity<String> SellerRegisteration(@RequestBody Registeration register) {
+        return lsRservice.SellerRegisteration(register);
     }
 
 }

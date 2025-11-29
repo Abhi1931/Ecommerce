@@ -2,7 +2,10 @@ package com.example.ecommerce.Controller;
 
 import com.example.ecommerce.DTO.*;
 import com.example.ecommerce.Entity.Products;
+import com.example.ecommerce.Mapper.Seller;
 import com.example.ecommerce.Service.Implementations.AdminServiceImpl;
+import com.example.ecommerce.Service.Implementations.SellerService;
+import com.example.ecommerce.Service.Implementations.UserPrincipal;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 
@@ -21,31 +24,42 @@ public class AdminController {
     @Autowired
     private AdminServiceImpl adminService;
 
+    @Autowired
+    private SellerService sellerservice;
 
-    @GetMapping("/user/{id}")
-    public ResponseEntity<Optional<AdminDTO>> GetUserById(@PathVariable("id") Long id){
+    @GetMapping("/userprofile/{id}")
+    public ResponseEntity<Optional<AdminDTO>> GetUserById(@PathVariable("id") Long id,Authentication authentication){
+        UserPrincipal principal = (UserPrincipal) authentication.getPrincipal();
+        Long adminId = principal.getUserData().getId();
         Optional<AdminDTO> user = adminService.GetUserById(id);
         return new ResponseEntity<>(user, HttpStatus.OK);
     }
 
     @PostMapping("/user/search/{name}")
-    public ResponseEntity<AdminDTO> SearchUserByname(String name){
+    public ResponseEntity<AdminDTO> SearchUserByname(String name,Authentication authentication){
         AdminDTO use = adminService.GetUserByName(name);
         return new ResponseEntity<>(use,HttpStatus.OK);
+    }
 
+    @PreAuthorize("hasRole('ADMIN')")
+    @PutMapping("/userprofile/{id}")
+    public AdminDTO UpdateUserById(@RequestBody AdminDTO update, @PathVariable("id") Long userid){
+        return adminService.UpdateUserDetails(update,userid);
+    }
 
-
+    @PreAuthorize("hasRole('ADMIN')")
+    @PutMapping("/seller/{id}")
+    public ResponseEntity<SellerDTO> updateSellerDetailsById(@PathVariable("id") Long id,@RequestBody SellerDTO sellerDTO) {
+        return  sellerservice.updateDetails(id, sellerDTO);
     }
 
 
-    @PutMapping("/user/{id}")
-    public AdminDTO UpdateUserById(@RequestBody AdminDTO update, @PathVariable("id") Long id){
-
-        return adminService.UpdateUserDetails(update,id);
+    @PostMapping("/seller/adduser")
+    public void CreateSeller( @RequestBody SellerDTO sellerDTO){
+        adminService.CreateSeller(sellerDTO);
     }
-//
 
-    @PostMapping("/adduser")
+    @PostMapping("/userprofile/adduser")
     public void CreateUser( @RequestBody AdminDTO adminDTO){
         adminService.CreateUser(adminDTO);
     }
@@ -72,8 +86,8 @@ public class AdminController {
     }
 
     @DeleteMapping("/user/{id}")
-    public String DeleteById(@PathVariable("id") Long id){
-         return adminService.DeleteUserById(id);
+    public void DeleteById(@PathVariable("id") Long id){
+          adminService.DeleteUserById(id);
     }
 
     // -- For Products
@@ -84,14 +98,9 @@ public class AdminController {
     }
 
 
-    @PutMapping("/products/{pid}")
-    public Products UpdateProdDetails(@RequestBody Products updates,@PathVariable("pid") Long id){
-        return adminService.UpdateProdDetails(updates,id);
-    }
-
     @DeleteMapping("/products/{pid}")
-    public String DeleteProductById(@PathVariable("pid") Long id){
-        return adminService.DeleteProdById(id);
+    public void DeleteProductById(@PathVariable("pid") Long id){
+         adminService.DeleteProdById(id);
     }
 
 
